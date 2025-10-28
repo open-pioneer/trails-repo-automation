@@ -1,0 +1,20 @@
+# Moves new issues or prs to the maintenance board.
+# Requires a github token with authorization to assign issues to boards in this organization.
+name: Add to maintenance board
+description: Assign new issues to the maintenance board.
+inputs:
+  github-token:
+    description: "GitHub PAT for editing the issue / project"
+    required: true
+  
+runs:
+  using: "composite"
+  steps:
+    - name: "Add to project"
+      uses: actions/add-to-project@v1.0.2
+      with:
+        project-url: https://github.com/orgs/open-pioneer/projects/6
+        github-token: ${{ inputs.github-token }}
+        # Don't include renovate stuff
+        labeled: dependencies
+        label-operator: NOT
