@@ -12,7 +12,7 @@
     "prHourlyLimit": 0,
     "rangeStrategy": "bump",
     "postUpdateOptions": ["pnpmDedupe"],
-    "minimumReleaseAge": "1 day",
+    "minimumReleaseAge": "3 days",
     "packageRules": [
         {
             "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
