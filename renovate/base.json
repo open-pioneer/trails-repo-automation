@@ -15,6 +15,11 @@
     "minimumReleaseAge": "3 days",
     "packageRules": [
         {
+            "description": "disable minimumReleaseAge for @conterra and @open-pioneer packages",
+            "matchPackageNames": ["@conterra/**", "@open-pioneer/**"],
+            "minimumReleaseAge": null
+        },
+        {
             "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
             "matchDepTypes": ["dependencies", "devDependencies", "packageManager", "pnpm.catalog.default"],
             "matchCurrentVersion": "!/^0/",
