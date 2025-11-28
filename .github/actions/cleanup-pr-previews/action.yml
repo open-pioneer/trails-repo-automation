@@ -1,0 +1,165 @@
+# Cleans up PR previews for closed pull requests
+#
+# - Finds all pr-* directories in the preview repository.
+#   These are created by the `deploy-pr-preview` action.
+# - Checks if the corresponding PR has been closed for more than the retention period
+# - Deletes old preview directories and pushes changes (unless dry-run is enabled)
+name: Cleanup PR Previews
+description: Removes PR preview deployments for pull requests that have been closed for a specified period
+inputs:
+  src-repo:
+    description: "ID of the source repository (e.g., 'trails-starter')"
+    required: true
+  preview-base-dir:
+    description: "Base directory name in the preview repository (defaults to src-repo if not specified)"
+    required: false
+    default: ""
+  token:
+    description: "GitHub token with access to read PRs and write to the preview repository"
+    required: true
+  retention-days:
+    description: "Number of days to retain PR previews after the PR is closed (default: 30)"
+    required: false
+    default: "30"
+  dry-run:
+    description: "If 'true', only logs what would be deleted without making changes"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Print configuration
+      shell: bash
+      run: |
+        echo "src-repo: ${{ inputs.src-repo }}"
+        echo "preview-base-dir: ${{ inputs.preview-base-dir || inputs.src-repo }}"
+        echo "target-repository: open-pioneer/trails-pr-previews"
+        echo "retention-days: ${{ inputs.retention-days }}"
+        echo "dry-run: ${{ inputs.dry-run }}"
+
+    - name: Checkout preview repository
+      uses: actions/checkout@v6
+      with:
+        repository: open-pioneer/trails-pr-previews
+        token: ${{ inputs.token }}
+        path: preview-repo
+
+    - name: Configure Git User
+      shell: bash
+      run: |
+        cd preview-repo
+        git config user.name "Open Pioneer Automation"
+        git config user.email "contact@openpioneer.dev"
+
+    - name: Cleanup old PR previews
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        SRC_REPO: ${{ inputs.src-repo }}
+        PREVIEW_BASE_DIR: ${{ inputs.preview-base-dir || inputs.src-repo }}
+        RETENTION_DAYS: ${{ inputs.retention-days }}
+      run: |
+        set -eu
+
+        cd preview-repo
+
+        # Calculate the cutoff timestamp (current time - retention days)
+        CUTOFF_TIMESTAMP=$(date -d "$RETENTION_DAYS days ago" +%s)
+        echo "Cutoff date: $(date -d "@$CUTOFF_TIMESTAMP" --iso-8601=seconds)"
+        echo ""
+
+        # Find all PR preview directories for this source repo
+        BASE_DIR="${PREVIEW_BASE_DIR}/pr-previews"
+
+        if [ ! -d "$BASE_DIR" ]; then
+          echo "No preview directory found at $BASE_DIR"
+          exit 0
+        fi
+
+        DELETED_COUNT=0
+        KEPT_COUNT=0
+
+        # Iterate through all pr-* directories
+        for PR_DIR in "$BASE_DIR"/pr-*; do
+          if [ ! -d "$PR_DIR" ]; then
+            continue
+          fi
+          
+          # Extract PR number from directory name (e.g., pr-123 -> 123)
+          PR_NUMBER=$(basename "$PR_DIR" | sed 's/pr-//')
+          
+          if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "Skipping invalid directory: $(basename "$PR_DIR")"
+            continue
+          fi
+          
+          echo "Checking PR #$PR_NUMBER..."
+          
+          # Query GitHub API for PR status
+          PR_DATA=$(gh pr view "$PR_NUMBER" \
+            --repo "open-pioneer/${SRC_REPO}" \
+            --json state,closedAt 2>/dev/null || echo "")
+          
+          if [ -z "$PR_DATA" ]; then
+            echo "  ⚠️  Could not fetch PR data for #$PR_NUMBER (may have been deleted)"
+            echo "  Keeping preview directory to be safe"
+            KEPT_COUNT=$((KEPT_COUNT + 1))
+            continue
+          fi
+          
+          # Parse PR state and closed date
+          PR_STATE=$(echo "$PR_DATA" | jq -r '.state')
+          PR_CLOSED_AT=$(echo "$PR_DATA" | jq -r '.closedAt // empty')
+          
+          if [ "$PR_STATE" != "CLOSED" ] && [ "$PR_STATE" != "MERGED" ]; then
+            echo "  ✓ PR is still open, keeping preview"
+            KEPT_COUNT=$((KEPT_COUNT + 1))
+            continue
+          fi
+          
+          if [ -z "$PR_CLOSED_AT" ]; then
+            echo "  ⚠️  PR is closed but no close date available, keeping preview"
+            KEPT_COUNT=$((KEPT_COUNT + 1))
+            continue
+          fi
+          
+          # Convert closed date to timestamp
+          PR_CLOSED_TIMESTAMP=$(date -d "$PR_CLOSED_AT" +%s)
+          
+          if [ "$PR_CLOSED_TIMESTAMP" -lt "$CUTOFF_TIMESTAMP" ]; then
+            DAYS_AGO=$(( ($(date +%s) - PR_CLOSED_TIMESTAMP) / 86400 ))
+            echo "  🗑️  PR closed $DAYS_AGO days ago ($(date -d "$PR_CLOSED_AT" --iso-8601=date)), deleting"
+            rm -rf "$PR_DIR"
+            echo "  ✓ Deleted: $PR_DIR"
+            DELETED_COUNT=$((DELETED_COUNT + 1))
+          else
+            DAYS_AGO=$(( ($(date +%s) - PR_CLOSED_TIMESTAMP) / 86400 ))
+            echo "  ✓ PR closed only $DAYS_AGO days ago, keeping preview"
+            KEPT_COUNT=$((KEPT_COUNT + 1))
+          fi
+          
+          echo ""
+        done
+
+        echo "=========================================="
+        echo "Summary:"
+        echo "  Deleted: $DELETED_COUNT preview(s)"
+        echo "  Kept: $KEPT_COUNT preview(s)"
+
+    - name: Commit and push changes
+      if: inputs.dry-run != 'true'
+      shell: bash
+      run: |
+        set -eu
+        cd preview-repo
+
+        # Check if there are any changes to commit
+        if [ -n "$(git status --porcelain)" ]; then
+          git add .
+          git commit -m "chore: cleanup old PR previews for ${{ inputs.src-repo }}"
+          git push
+          echo "✓ Changes pushed successfully"
+        else
+          echo "No changes to commit"
+        fi

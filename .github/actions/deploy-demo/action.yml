@@ -1,5 +1,5 @@
 # Deploys a built demo site to GitHub Pages
-# 
+#
 # - Expects a built site in `src-dir`
 # - Assumes that pnpm is set up correctly and that dependencies are installed.
 name: Deploy demo

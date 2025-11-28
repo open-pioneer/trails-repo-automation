@@ -1,6 +1,11 @@
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-    "extends": ["config:recommended", "schedule:earlyMondays", ":semanticCommitTypeAll(chore)", ":approveMajorUpdates"],
+    "extends": [
+        "config:recommended",
+        "schedule:earlyMondays",
+        ":semanticCommitTypeAll(chore)",
+        ":approveMajorUpdates"
+    ],
     "labels": ["dependencies"],
     "dependencyDashboard": true,
     "rebaseWhen": "conflicted",
@@ -21,14 +26,24 @@
         },
         {
             "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
-            "matchDepTypes": ["dependencies", "devDependencies", "packageManager", "pnpm.catalog.default"],
+            "matchDepTypes": [
+                "dependencies",
+                "devDependencies",
+                "packageManager",
+                "pnpm.catalog.default"
+            ],
             "matchCurrentVersion": "!/^0/",
             "groupName": "all non-major dependencies",
             "groupSlug": "all-minor-patch"
         },
         {
             "matchUpdateTypes": ["patch", "pin", "digest"],
-            "matchDepTypes": ["dependencies", "devDependencies", "packageManager", "pnpm.catalog.default"],
+            "matchDepTypes": [
+                "dependencies",
+                "devDependencies",
+                "packageManager",
+                "pnpm.catalog.default"
+            ],
             "matchCurrentVersion": "/^0/",
             "description": "group all non-major dependencies with 0.x versions",
             "groupName": "all non-major dependencies",

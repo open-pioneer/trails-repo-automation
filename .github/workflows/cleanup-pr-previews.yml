@@ -1,0 +1,82 @@
+name: Cleanup PR Previews
+
+on:
+  # Run on the first day of every month at 02:00 UTC
+  schedule:
+    - cron: "0 2 1 * *"
+
+  # Allow manual triggering with custom options
+  workflow_dispatch:
+    inputs:
+      src-repo:
+        description: "Source repository to clean up (e.g., trails-core-packages)"
+        required: false
+        type: choice
+        options:
+          - all
+          - trails-core-packages
+          - trails-openlayers-base-packages
+          - trails-community
+        default: "all"
+      retention-days:
+        description: "Number of days to retain PR previews after closure"
+        required: false
+        type: number
+        default: 30
+      dry-run:
+        description: "Dry run (only show what would be deleted)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  cleanup-trails-core-packages:
+    name: Cleanup trails-core-packages previews
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.src-repo == 'all' || github.event.inputs.src-repo == 'trails-core-packages'
+    steps:
+      - name: Checkout automation repo
+        uses: actions/checkout@v6
+
+      - name: Run cleanup
+        uses: ./.github/actions/cleanup-pr-previews
+        with:
+          src-repo: trails-core-packages
+          preview-base-dir: core-packages
+          token: ${{ secrets.DEMO_DEPLOY_TOKEN }}
+          retention-days: ${{ github.event.inputs.retention-days || '30' }}
+          dry-run: ${{ github.event.inputs.dry-run || 'false' }}
+
+  cleanup-trails-openlayers-base-packages:
+    name: Cleanup trails-openlayers-base-packages previews
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.src-repo == 'all' || github.event.inputs.src-repo == 'trails-openlayers-base-packages'
+    steps:
+      - name: Checkout automation repo
+        uses: actions/checkout@v6
+
+      - name: Run cleanup
+        uses: ./.github/actions/cleanup-pr-previews
+        with:
+          src-repo: trails-openlayers-base-packages
+          preview-base-dir: openlayers-base-packages
+          token: ${{ secrets.DEMO_DEPLOY_TOKEN }}
+          retention-days: ${{ github.event.inputs.retention-days || '30' }}
+          dry-run: ${{ github.event.inputs.dry-run || 'false' }}
+
+  cleanup-trails-community:
+    name: Cleanup trails-community previews
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.src-repo == 'all' || github.event.inputs.src-repo == 'trails-community'
+    steps:
+      - name: Checkout automation repo
+        uses: actions/checkout@v4
+
+      - name: Run cleanup
+        uses: ./.github/actions/cleanup-pr-previews
+        with:
+          src-repo: trails-community
+          preview-base-dir: community
+          token: ${{ secrets.DEMO_DEPLOY_TOKEN }}
+          retention-days: ${{ github.event.inputs.retention-days || '30' }}
+          dry-run: ${{ github.event.inputs.dry-run || 'false' }}

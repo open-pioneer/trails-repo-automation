@@ -1,5 +1,5 @@
 # Deploys a preview of a pull request to GitHub Pages
-# 
+#
 # - Expects the built preview website in `site/www/`
 # - Assumes that pnpm is set up correctly and that dependencies are installed.
 name: Deploy PR Preview
@@ -15,23 +15,23 @@ inputs:
 runs:
   using: "composite"
   steps:
-      - name: Print configuration
-        shell: bash
-        run: |
-          echo "src-repo: ${{ inputs.src-repo }}"
-          echo "target-repository: open-pioneer/trails-pr-previews"
+    - name: Print configuration
+      shell: bash
+      run: |
+        echo "src-repo: ${{ inputs.src-repo }}"
+        echo "target-repository: open-pioneer/trails-pr-previews"
 
-      - name: Configure Git User
-        shell: bash
-        run: |
-          git config --global user.name "Open Pioneer Automation"
-          git config --global user.email "contact@openpioneer.dev"
-          
-      - name: Deploy PR Preview
-        uses: rossjrw/pr-preview-action@v1
-        if: (github.event_name == 'pull-request' || github.event_name == 'pull_request_target') && github.event.action != 'closed'
-        with:
-          source-dir: ./site/www/
-          umbrella-dir: "${{ inputs.src-repo }}/pr-previews"
-          deploy-repository: open-pioneer/trails-pr-previews
-          token: ${{ inputs.token }}
+    - name: Configure Git User
+      shell: bash
+      run: |
+        git config --global user.name "Open Pioneer Automation"
+        git config --global user.email "contact@openpioneer.dev"
+
+    - name: Deploy PR Preview
+      uses: rossjrw/pr-preview-action@v1
+      if: (github.event_name == 'pull-request' || github.event_name == 'pull_request_target') && github.event.action != 'closed'
+      with:
+        source-dir: ./site/www/
+        umbrella-dir: "${{ inputs.src-repo }}/pr-previews"
+        deploy-repository: open-pioneer/trails-pr-previews
+        token: ${{ inputs.token }}
