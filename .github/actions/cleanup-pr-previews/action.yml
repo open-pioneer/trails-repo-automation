@@ -153,13 +153,37 @@ runs:
       run: |
         set -eu
         cd preview-repo
-
+        
         # Check if there are any changes to commit
         if [ -n "$(git status --porcelain)" ]; then
           git add .
           git commit -m "chore: cleanup old PR previews for ${{ inputs.src-repo }}"
-          git push
-          echo "✓ Changes pushed successfully"
+          
+          # Retry push with exponential backoff to handle race conditions
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          BACKOFF=2
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if git push; then
+              echo "✓ Changes pushed successfully"
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                SLEEP_TIME=$((BACKOFF ** RETRY_COUNT))
+                echo "⚠️  Push failed, retrying in ${SLEEP_TIME}s (attempt $((RETRY_COUNT + 1))/${MAX_RETRIES})..."
+                sleep $SLEEP_TIME
+                
+                # Pull with rebase to integrate any concurrent changes
+                echo "Pulling latest changes..."
+                git pull --rebase
+              else
+                echo "❌ Push failed after ${MAX_RETRIES} attempts"
+                exit 1
+              fi
+            fi
+          done
         else
           echo "No changes to commit"
         fi
