@@ -29,6 +29,7 @@ runs:
           
       - name: Deploy PR Preview
         uses: rossjrw/pr-preview-action@v1
+        if: (github.event_name == 'pull-request' || github.event_name == 'pull_request_target') && github.event.action != 'closed'
         with:
           source-dir: ./site/www/
           umbrella-dir: "${{ inputs.src-repo }}/pr-previews"
