@@ -13,6 +13,10 @@ inputs:
     description: Name of the snapshot build tag (e.g. "dev")
     required: false
     default: "dev"
+  build-command:
+    description: Command to build packages (e.g. "build-packages")
+    required: false
+    default: "build-packages"
 runs:
   using: "composite"
   steps:
@@ -27,7 +31,7 @@ runs:
     # Note: must happen after versioning because the updated package.json files will be copied into dist/
     - name: Build packages
       shell: bash
-      run: pnpm build-packages
+      run: pnpm ${{ inputs.build-command }}
 
     - name: Publish packages
       shell: bash
