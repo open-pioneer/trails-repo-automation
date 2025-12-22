@@ -53,6 +53,12 @@
             "groupSlug": "all-minor-patch"
         },
         {
+            "matchPackageNames": "@open-pioneer/**",
+            "matchCurrentVersion": "/-dev/",
+            "description": "Disable automatic updates for dev snapshots",
+            "enabled": false
+        },
+        {
             "matchDepTypes": ["engines"],
             "matchUpdateTypes": ["major"],
             "groupName": "update engines",
