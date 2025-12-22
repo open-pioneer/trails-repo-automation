@@ -64,14 +64,6 @@
             "matchDepTypes": ["engines"],
             "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
             "enabled": false
-        },
-        {
-            "description": "pin pnpm to versions <= 10.22.0 (there is a problem with renovate running into timeouts)",
-            "matchPackageNames": ["pnpm"],
-            "matchDepTypes": ["packageManager"],
-            "allowedVersions": "<=10.22.0",
-            "groupName": "update pnpm package manager",
-            "groupSlug": "update-pnpm-package-manager"
         }
     ]
 }
