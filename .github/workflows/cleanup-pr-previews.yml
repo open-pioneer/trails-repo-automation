@@ -70,7 +70,7 @@ jobs:
     if: github.event_name == 'schedule' || github.event.inputs.src-repo == 'all' || github.event.inputs.src-repo == 'trails-community'
     steps:
       - name: Checkout automation repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run cleanup
         uses: ./.github/actions/cleanup-pr-previews
