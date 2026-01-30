@@ -1,0 +1,72 @@
+name: Cleanup NPM Dev Tags
+
+on:
+  # Run on the first day of every month at 02:00 UTC
+  schedule:
+    - cron: "0 2 1 * *"
+
+  # Allow manual triggering with custom options
+  workflow_dispatch:
+    inputs:
+      organization:
+        description: "NPM organization to clean up"
+        required: false
+        type: choice
+        options:
+          - all
+          - "@open-pioneer"
+          - "@open-pioneer-community"
+        default: "all"
+      retention-days:
+        description: "Number of days to retain dev tags"
+        required: false
+        type: number
+        default: 30
+      dry-run:
+        description: "Dry run (only show what would be deleted)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  cleanup-open-pioneer:
+    name: Cleanup @open-pioneer dev tags
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.organization == 'all' || github.event.inputs.organization == '@open-pioneer'
+    steps:
+      - name: Checkout automation repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Run cleanup
+        uses: ./.github/actions/cleanup-npm-dev-tags
+        with:
+          npm-organization: "@open-pioneer"
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          retention-days: ${{ github.event.inputs.retention-days || '30' }}
+          dry-run: ${{ github.event.inputs.dry-run || 'false' }}
+
+  cleanup-open-pioneer-community:
+    name: Cleanup @open-pioneer-community dev tags
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.organization == 'all' || github.event.inputs.organization == '@open-pioneer-community'
+    steps:
+      - name: Checkout automation repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Run cleanup
+        uses: ./.github/actions/cleanup-npm-dev-tags
+        with:
+          npm-organization: "@open-pioneer-community"
+          npm-token: ${{ secrets.NPM_COMMUNITY_TOKEN }}
+          retention-days: ${{ github.event.inputs.retention-days || '30' }}
+          dry-run: ${{ github.event.inputs.dry-run || 'false' }}

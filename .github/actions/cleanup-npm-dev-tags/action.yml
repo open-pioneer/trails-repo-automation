@@ -1,0 +1,219 @@
+# Cleans up obsolete dev tags from npm packages
+#
+# - Lists all packages in the specified npm organization
+# - Checks each package for tags matching "dev" or "dev-*" pattern
+#   These packages are published by the publish-snapshots action.
+# - If the last usage of the tag (latest publish) is longer than X days, it will be removed
+# - Never touches published versions, only removes tags
+name: Cleanup NPM Dev Tags
+description: Removes obsolete dev and dev-* tags from npm packages in an organization
+inputs:
+  npm-organization:
+    description: "NPM organization to clean up"
+    required: true
+  npm-token:
+    description: "NPM token with permission to remove dist-tags"
+    required: true
+  retention-days:
+    description: "Number of days to retain dev tags (default: 30)"
+    required: false
+    default: "30"
+  dry-run:
+    description: "If 'true', only logs what would be deleted without making changes"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Print configuration
+      shell: bash
+      run: |
+        echo "npm-organization: ${{ inputs.npm-organization }}"
+        echo "retention-days: ${{ inputs.retention-days }}"
+        echo "dry-run: ${{ inputs.dry-run }}"
+        echo ""
+
+    - name: Configure npm authentication
+      shell: bash
+      run: |
+        echo "//registry.npmjs.org/:_authToken=${{ inputs.npm-token }}" > ~/.npmrc
+
+    - name: Cleanup old dev tags
+      shell: bash
+      env:
+        NPM_ORG: ${{ inputs.npm-organization }}
+        RETENTION_DAYS: ${{ inputs.retention-days }}
+        DRY_RUN: ${{ inputs.dry-run }}
+      run: | # shell
+        set -euo pipefail
+
+        # Calculate the cutoff timestamp (current time - retention days)
+        CUTOFF_TIMESTAMP=$(date -d "$RETENTION_DAYS days ago" +%s)
+        echo "Cutoff date: $(date -d "@$CUTOFF_TIMESTAMP" --iso-8601=seconds)"
+        echo ""
+
+        # Track statistics
+        TOTAL_PACKAGES=0
+        PACKAGES_WITH_DEV_TAGS=0
+        TOTAL_TAGS_CHECKED=0
+        TAGS_DELETED=0
+        TAGS_KEPT=0
+        ERRORS=0
+
+        echo "Fetching packages from $NPM_ORG..."
+        
+        # Use npm access list packages command to get all packages in the organization
+        SEARCH_SCOPE="${NPM_ORG#@}"
+        
+        # Capture both stdout and stderr to properly detect errors
+        # Temporarily disable -e to capture exit code
+        set +e
+        PACKAGES_OUTPUT=$(npm access list packages "$SEARCH_SCOPE" --json 2>&1)
+        NPM_EXIT_CODE=$?
+        set -e
+        
+        # Check if npm command failed
+        if [ $NPM_EXIT_CODE -ne 0 ]; then
+          echo "❌ npm access command failed with exit code $NPM_EXIT_CODE"
+          echo "Output:"
+          echo "$PACKAGES_OUTPUT"
+          echo ""
+          echo "This may be due to:"
+          echo "  - Insufficient token permissions (token needs read access to the organization)"
+          echo "  - Incorrect organization name"
+          echo "  - Network issues"
+          exit 1
+        fi
+        
+        # Validate that we got valid JSON
+        PACKAGES_JSON=$(echo "$PACKAGES_OUTPUT" | jq '.' 2>/dev/null)
+        if [ $? -ne 0 ]; then
+          echo "❌ npm access command did not return valid JSON"
+          echo "Output:"
+          echo "$PACKAGES_OUTPUT"
+          exit 1
+        fi
+        
+        if [ "$PACKAGES_JSON" = "{}" ]; then
+          echo "⚠️  No packages found in $NPM_ORG"
+          exit 1
+        fi
+        
+        # Extract package names (keys from the JSON object) and sort them
+        PACKAGES=$(echo "$PACKAGES_JSON" | jq -r 'keys[]' | sort)
+        PACKAGE_COUNT=$(echo "$PACKAGES" | wc -l)
+        echo "✓ Found $PACKAGE_COUNT packages in $NPM_ORG"
+        echo ""
+        echo "Packages:"
+        echo "$PACKAGES" | sed 's/^/  - /'
+        echo ""
+
+        for PACKAGE in $PACKAGES; do
+          TOTAL_PACKAGES=$((TOTAL_PACKAGES + 1))
+          echo "----------------------------------------"
+          echo "📦 Checking package: $PACKAGE"
+          
+          # Fetch package metadata including dist-tags and publish times
+          PACKAGE_DATA=$(npm view "$PACKAGE" --json 2>/dev/null || echo "")
+          
+          if [ -z "$PACKAGE_DATA" ]; then
+            echo "  ⚠️  Could not fetch package data, skipping"
+            ERRORS=$((ERRORS + 1))
+            echo ""
+            continue
+          fi
+          
+          DIST_TAGS=$(echo "$PACKAGE_DATA" | jq -r '.["dist-tags"] // {}')
+          if [ "$DIST_TAGS" = "{}" ]; then
+            echo "  ℹ️  No dist-tags found"
+            echo ""
+            continue
+          fi
+          
+          # Check if package has any dev or dev-* tags
+          DEV_TAGS=$(echo "$DIST_TAGS" | jq -r 'to_entries | .[] | select(.key == "dev" or (.key | startswith("dev-"))) | .key')
+          if [ -z "$DEV_TAGS" ]; then
+            echo "  ✓ No dev tags found"
+            echo ""
+            continue
+          fi
+          
+          PACKAGES_WITH_DEV_TAGS=$((PACKAGES_WITH_DEV_TAGS + 1))
+          echo "  🔍 Found dev tags: $(echo "$DEV_TAGS" | tr '\n' ' ')"
+          
+          # Extract the time information (publish dates for each version)
+          TIME_DATA=$(echo "$PACKAGE_DATA" | jq -r '.time // {}')
+          
+          # Process each dev tag
+          for TAG in $DEV_TAGS; do
+            TOTAL_TAGS_CHECKED=$((TOTAL_TAGS_CHECKED + 1))
+            
+            # Get the version this tag points to
+            VERSION=$(echo "$DIST_TAGS" | jq -r --arg tag "$TAG" '.[$tag]')
+            
+            if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+              echo "  ⚠️  Tag '$TAG': Could not determine version, skipping"
+              ERRORS=$((ERRORS + 1))
+              continue
+            fi
+            
+            echo "  🏷️  Tag '$TAG' -> version $VERSION"
+            
+            # Get the publish date for this version
+            PUBLISH_DATE=$(echo "$TIME_DATA" | jq -r --arg version "$VERSION" '.[$version] // empty')
+            if [ -z "$PUBLISH_DATE" ]; then
+              echo "     ⚠️  Could not determine publish date, keeping tag to be safe"
+              TAGS_KEPT=$((TAGS_KEPT + 1))
+              continue
+            fi
+            
+            # Convert publish date to timestamp
+            PUBLISH_TIMESTAMP=$(date -d "$PUBLISH_DATE" +%s)
+            DAYS_AGO=$(( ($(date +%s) - PUBLISH_TIMESTAMP) / 86400 ))
+            
+            if [ "$PUBLISH_TIMESTAMP" -lt "$CUTOFF_TIMESTAMP" ]; then
+              echo "     🗑️  Version published $DAYS_AGO days ago ($(date -d "$PUBLISH_DATE" --iso-8601=date))"
+              
+              if [ "$DRY_RUN" = "true" ]; then
+                echo "     [DRY RUN] Would delete tag '$TAG' from $PACKAGE"
+                TAGS_DELETED=$((TAGS_DELETED + 1))
+              else
+                echo "     Deleting tag '$TAG'..."
+                if npm dist-tag rm "$PACKAGE" "$TAG" 2>/dev/null; then
+                  echo "     ✓ Deleted tag '$TAG'"
+                  TAGS_DELETED=$((TAGS_DELETED + 1))
+                else
+                  echo "     ❌ Failed to delete tag '$TAG'"
+                  ERRORS=$((ERRORS + 1))
+                fi
+              fi
+            else
+              echo "     ✓ Version published only $DAYS_AGO days ago, keeping tag"
+              TAGS_KEPT=$((TAGS_KEPT + 1))
+            fi
+          done
+          
+          echo ""
+        done
+
+        echo "=========================================="
+        echo "Summary for $NPM_ORG:"
+        echo "  Packages checked: $TOTAL_PACKAGES"
+        echo "  Packages with dev tags: $PACKAGES_WITH_DEV_TAGS"
+        echo "  Dev tags checked: $TOTAL_TAGS_CHECKED"
+        if [ "$DRY_RUN" = "true" ]; then
+          echo "  Tags that would be deleted: $TAGS_DELETED"
+        else
+          echo "  Tags deleted: $TAGS_DELETED"
+        fi
+        echo "  Tags kept: $TAGS_KEPT"
+        if [ "$ERRORS" -gt 0 ]; then
+          echo "  ⚠️  Errors encountered: $ERRORS"
+        fi
+        echo "=========================================="
+        
+        if [ "$DRY_RUN" = "true" ]; then
+          echo ""
+          echo "ℹ️  This was a DRY RUN - no tags were actually deleted"
+        fi
