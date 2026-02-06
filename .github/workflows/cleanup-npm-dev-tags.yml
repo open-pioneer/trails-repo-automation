@@ -1,5 +1,8 @@
 name: Cleanup NPM Dev Tags
 
+permissions:
+  contents: read
+
 on:
   # Run on the first day of every month at 02:00 UTC
   schedule:
