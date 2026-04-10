@@ -70,6 +70,11 @@
             "matchDepTypes": ["engines"],
             "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
             "enabled": false
+        },
+        {
+            "description": "disable override updates",
+            "matchDepTypes": ["overrides", "pnpm.overrides", "pnpm-workspace.overrides"],
+            "enabled": false
         }
     ]
 }
