@@ -11,7 +11,7 @@ runs:
   using: "composite"
   steps:
     - name: "Add to project"
-      uses: actions/add-to-project@v1.0.2
+      uses: actions/add-to-project@v2.0.0
       with:
         project-url: https://github.com/orgs/open-pioneer/projects/6
         github-token: ${{ inputs.github-token }}
