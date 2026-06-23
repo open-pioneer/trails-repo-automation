@@ -39,7 +39,7 @@ runs:
         echo "dry-run: ${{ inputs.dry-run }}"
 
     - name: Checkout preview repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         repository: open-pioneer/trails-pr-previews
         token: ${{ inputs.token }}
