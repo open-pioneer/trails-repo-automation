@@ -43,7 +43,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "24.17.0"
+          node-version: "24.18.0"
 
       - name: Run cleanup
         uses: ./.github/actions/cleanup-npm-dev-tags
@@ -64,7 +64,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "24.17.0"
+          node-version: "24.18.0"
 
       - name: Run cleanup
         uses: ./.github/actions/cleanup-npm-dev-tags
