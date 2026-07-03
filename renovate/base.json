@@ -4,7 +4,8 @@
         "config:recommended",
         "schedule:earlyMondays",
         ":semanticCommitTypeAll(chore)",
-        ":approveMajorUpdates"
+        ":approveMajorUpdates",
+        "helpers:pinGitHubActionDigests"
     ],
     "labels": ["dependencies"],
     "dependencyDashboard": true,
