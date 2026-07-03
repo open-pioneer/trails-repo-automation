@@ -29,6 +29,13 @@
             "minimumReleaseAge": null
         },
         {
+            "description": "disable minimumReleaseAge for open pioneer github actions",
+            "matchManagers": ["github-actions"],
+            "matchDepTypes": ["action"],
+            "matchDepNames": ["open-pioneer/trails-repo-automation"],
+            "minimumReleaseAge": null
+        },
+        {
             "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
             "matchDepTypes": [
                 "dependencies",
