@@ -46,4 +46,4 @@ runs:
         echo "Published packages"
         echo "=================="
         echo ""
-        cat pnpm-publish-summary.json
+        jq -r '.publishedPackages[] | "- \(.name)@\(.version)"' pnpm-publish-summary.json
