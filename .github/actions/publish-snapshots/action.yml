@@ -36,16 +36,14 @@ runs:
     - name: Publish packages
       shell: bash
       run: |
-        echo "Published packages" >> publish.log
-        echo "==================" >> publish.log
-        echo "" >> publish.log
-
-        # Stdout of publish contains the published package names and versions
-        pnpm publish -r --access public --tag ${{ inputs.snapshot-tag }} --no-git-checks | tee -a publish.log
+        pnpm publish -r --access public --tag ${{ inputs.snapshot-tag }} --no-git-checks --report-summary
       env:
         NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
 
     - name: List packages
       shell: bash
       run: |
-        cat publish.log
+        echo "Published packages"
+        echo "=================="
+        echo ""
+        cat pnpm-publish-summary.json
