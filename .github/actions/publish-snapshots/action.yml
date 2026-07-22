@@ -1,8 +1,6 @@
 # Publishes package snapshots (-dev-xyz) to npmjs.com
 #
 # - Assumes that pnpm is set up correctly and that dependencies are installed.
-#   in the calling repository for fixing package.json dependencies.
-#   This is a temporary solution that should be replaced with a more stable alternative.
 name: Publish Snapshots
 description: Publish development snapshots to the npm registry
 inputs:
