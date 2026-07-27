@@ -62,9 +62,11 @@
         },
         {
             "matchPackageNames": "@open-pioneer/**",
-            "matchCurrentVersion": "/-dev/",
-            "description": "Disable automatic updates for dev snapshots",
-            "enabled": false
+            "matchCurrentVersion": "/-[a-z][a-z0-9-]*\\.\\d+$/",
+            "description": "For dependencies pinned to a snapshot (e.g. 3.1.1-dev.20260623134110): update to newer snapshot with same tag or to the newer release.",
+            "allowedVersions": "/-{{{ replace '\\..*' '' (lookup (split currentVersion '-') 1) }}}\\.|^\\d+\\.\\d+\\.\\d+$/",
+            "groupName": "snapshot updates",
+            "groupSlug": "snapshots"
         },
         {
             "matchDepTypes": ["engines"],
