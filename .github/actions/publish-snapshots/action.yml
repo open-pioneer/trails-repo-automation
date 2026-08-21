@@ -1,8 +1,6 @@
 # Publishes package snapshots (-dev-xyz) to npmjs.com
 #
 # - Assumes that pnpm is set up correctly and that dependencies are installed.
-# - Authenticates via pnpm's `pnpm_config_*` environment variable support (pnpm >= 11.6), so no
-#   .npmrc is needed and the caller does not have to run `install` with `npm-auth: true`.
 name: Publish Snapshots
 description: Publish development snapshots to the npm registry
 inputs:
@@ -27,16 +25,6 @@ runs:
       run: |
         set -eu
 
-        # Credentials are passed via `pnpm_config_//<registry>/:_authToken`, which older pnpm
-        # ignores *silently* - the publish then fails with an opaque "404 Not Found - PUT".
-        PNPM_VERSION=$(pnpm --version)
-        MIN_PNPM_VERSION=11.6
-        if [ "$(printf '%s\n%s\n' "$MIN_PNPM_VERSION" "$PNPM_VERSION" | sort -V | head -n1)" != "$MIN_PNPM_VERSION" ]; then
-          echo "::error::pnpm $PNPM_VERSION is too old: environment variable credentials need >= $MIN_PNPM_VERSION."
-          echo "::error::Raise \"packageManager\" in package.json."
-          exit 1
-        fi
-        echo "pnpm: $PNPM_VERSION"
 
         case "$SNAPSHOT_TAG" in
           dev | dev-*) ;;
@@ -73,15 +61,23 @@ runs:
       run: |
         set -eu
 
-        # The variable name contains "/" and ":", which bash cannot assign, so pass it via `env`.
-        # See https://pnpm.io/npmrc
-        env "pnpm_config_//registry.npmjs.org/:_authToken=$NPM_TOKEN" \
-          pnpm whoami
+        REGISTRY="https://registry.npmjs.org"
+        AUTH_KEY="//${REGISTRY#*://}/:_authToken"
 
-        # The variable name contains "/" and ":", which bash cannot assign, so pass it via `env`.
-        # See https://pnpm.io/npmrc
-        env "pnpm_config_//registry.npmjs.org/:_authToken=$NPM_TOKEN" \
-          pnpm publish -r --registry https://registry.npmjs.org --access public --tag "$SNAPSHOT_TAG" --no-git-checks --report-summary
+        revoke() { pnpm config delete "$AUTH_KEY" > /dev/null 2>&1 || true; }
+        trap revoke EXIT
+        pnpm config set "$AUTH_KEY" "$NPM_TOKEN" > /dev/null
+
+        # Fail with a clear message instead of the 404 that npm returns for unauthorised writes.
+        if ! WHOAMI=$(pnpm whoami --registry "$REGISTRY" 2>&1); then
+          echo "::error::Cannot authenticate against $REGISTRY."
+          echo "::error::$WHOAMI"
+          echo "::error::Check that the npm token is valid and has write access to the packages."
+          exit 1
+        fi
+        echo "Authenticated as: $WHOAMI"
+
+        pnpm publish -r --registry "$REGISTRY" --access public --tag "$SNAPSHOT_TAG" --no-git-checks --report-summary
 
     - name: List packages
       shell: bash
