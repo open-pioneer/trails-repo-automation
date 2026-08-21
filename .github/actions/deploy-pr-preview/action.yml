@@ -35,8 +35,9 @@ runs:
         git config --global user.email "contact@openpioneer.dev"
 
     # Needs explicit options like pr-number and commit messages because we're running via workflow_run,
-    # not directory as a workflow triggered by pr events.
+    # not directly as a workflow triggered by pr events.
     - name: Deploy PR Preview
+      id: deploy
       uses: rossjrw/pr-preview-action@ffa7509e91a3ec8dfc2e5536c4d5c1acdf7a6de9 # v1
       with:
         source-dir: ./site/www/
@@ -48,3 +49,16 @@ runs:
         deploy-commit-message: "Deploy preview for PR ${{ inputs.pr-number }} 🛫"
         remove-commit-message: "Remove preview for PR ${{ inputs.pr-number }} 🛬"
         wait-for-pages-deployment: true
+        # pr-number is not forwarded to marocchino/sticky-pull-request-comment ...
+        comment: false
+
+    - name: Comment preview link on pull request
+      uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+      with:
+        header: pr-preview
+        number: ${{ inputs.pr-number }}
+        message: |
+          :rocket: View preview at ${{ steps.deploy.outputs.preview-url }}
+
+          <h6>Built to branch <a href="${{ github.server_url }}/open-pioneer/trails-pr-previews/tree/gh-pages">gh-pages</a> at ${{ steps.deploy.outputs.action-start-time }}.<br>
+          Preview will be ready when the <a href="${{ github.server_url }}/open-pioneer/trails-pr-previews/deployments">GitHub Pages deployment</a> is complete.</h6>
