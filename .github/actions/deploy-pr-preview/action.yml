@@ -53,7 +53,7 @@ runs:
         action: deploy
         deploy-commit-message: "Deploy preview for PR ${{ inputs.pr-number }} 🛫"
         remove-commit-message: "Remove preview for PR ${{ inputs.pr-number }} 🛬"
-        wait-for-pages-deployment: true
+        wait-for-pages-deployment: false
         # pr-number is not forwarded to marocchino/sticky-pull-request-comment ...
         comment: false
 
