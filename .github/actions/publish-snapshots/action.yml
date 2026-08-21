@@ -1,6 +1,8 @@
 # Publishes package snapshots (-dev-xyz) to npmjs.com
 #
 # - Assumes that pnpm is set up correctly and that dependencies are installed.
+# - Authenticates via pnpm's `pnpm_config_*` environment variable support (pnpm >= 11.6), so no
+#   .npmrc is needed and the caller does not have to run `install` with `npm-auth: true`.
 name: Publish Snapshots
 description: Publish development snapshots to the npm registry
 inputs:
@@ -18,12 +20,23 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Validate snapshot tag
+    - name: Validate inputs
       shell: bash
       env:
         SNAPSHOT_TAG: ${{ inputs.snapshot-tag }}
       run: |
         set -eu
+
+        # Credentials are passed via `pnpm_config_//<registry>/:_authToken`, which older pnpm
+        # ignores *silently* - the publish then fails with an opaque "404 Not Found - PUT".
+        PNPM_VERSION=$(pnpm --version)
+        MIN_PNPM_VERSION=11.6
+        if [ "$(printf '%s\n%s\n' "$MIN_PNPM_VERSION" "$PNPM_VERSION" | sort -V | head -n1)" != "$MIN_PNPM_VERSION" ]; then
+          echo "::error::pnpm $PNPM_VERSION is too old: environment variable credentials need >= $MIN_PNPM_VERSION."
+          echo "::error::Raise \"packageManager\" in package.json."
+          exit 1
+        fi
+        echo "pnpm: $PNPM_VERSION"
 
         case "$SNAPSHOT_TAG" in
           dev | dev-*) ;;
@@ -55,11 +68,15 @@ runs:
     - name: Publish packages
       shell: bash
       env:
-        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+        NPM_TOKEN: ${{ inputs.npm-token }}
         SNAPSHOT_TAG: ${{ inputs.snapshot-tag }}
       run: |
         set -eu
-        pnpm publish -r --access public --tag "$SNAPSHOT_TAG" --no-git-checks --report-summary
+
+        # The variable name contains "/" and ":", which bash cannot assign, so pass it via `env`.
+        # See https://pnpm.io/npmrc
+        env "pnpm_config_//registry.npmjs.org/:_authToken=$NPM_TOKEN" \
+          pnpm publish -r --registry https://registry.npmjs.org --access public --tag "$SNAPSHOT_TAG" --no-git-checks --report-summary
 
     - name: List packages
       shell: bash
