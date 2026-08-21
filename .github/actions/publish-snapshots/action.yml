@@ -63,7 +63,7 @@ runs:
         SNAPSHOT_TAG: ${{ inputs.snapshot-tag }}
       run: |
         set -eu
-        pnpm publish -r --registry "$REGISTRY" --access public --tag "$SNAPSHOT_TAG" --no-git-checks --report-summary
+        pnpm publish -r --registry "https://registry.npmjs.org" --access public --tag "$SNAPSHOT_TAG" --no-git-checks --report-summary
 
     - name: List packages
       shell: bash
