@@ -1,6 +1,6 @@
 # Publishes package snapshots (-dev-xyz) to npmjs.com
 #
-# - Assumes that pnpm is set up correctly and that dependencies are installed.
+# Assumes that pnpm is set up correctly and that dependencies are installed.
 name: Publish Snapshots
 description: Publish development snapshots to the npm registry
 inputs:
@@ -24,7 +24,6 @@ runs:
         SNAPSHOT_TAG: ${{ inputs.snapshot-tag }}
       run: |
         set -eu
-
 
         case "$SNAPSHOT_TAG" in
           dev | dev-*) ;;
@@ -53,30 +52,17 @@ runs:
       shell: bash
       run: pnpm ${{ inputs.build-command }}
 
+    - name: Authenticate
+      uses: open-pioneer/trails-repo-automation/.github/actions/npm-authenticate@dev
+      with:
+        npm-token: ${{ inputs.npm-token }}
+
     - name: Publish packages
       shell: bash
       env:
-        NPM_TOKEN: ${{ inputs.npm-token }}
         SNAPSHOT_TAG: ${{ inputs.snapshot-tag }}
       run: |
         set -eu
-
-        REGISTRY="https://registry.npmjs.org"
-        AUTH_KEY="//${REGISTRY#*://}/:_authToken"
-
-        revoke() { pnpm config delete "$AUTH_KEY" > /dev/null 2>&1 || true; }
-        trap revoke EXIT
-        pnpm config set "$AUTH_KEY" "$NPM_TOKEN" > /dev/null
-
-        # Fail with a clear message instead of the 404 that npm returns for unauthorized writes.
-        if ! WHOAMI=$(pnpm whoami --registry "$REGISTRY" 2>&1); then
-          echo "::error::Cannot authenticate against $REGISTRY."
-          echo "::error::$WHOAMI"
-          echo "::error::Check that the npm token is valid and has write access to the packages."
-          exit 1
-        fi
-        echo "Authenticated as: $WHOAMI"
-
         pnpm publish -r --registry "$REGISTRY" --access public --tag "$SNAPSHOT_TAG" --no-git-checks --report-summary
 
     - name: List packages

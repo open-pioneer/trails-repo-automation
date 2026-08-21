@@ -1,0 +1,133 @@
+# Shared CI pipeline for the trails package repositories.
+#
+# The site build runs here on `main` only. On pull requests it happens in
+# `shared-build-samples.yml` instead, so that PR previews are not blocked by the test suite.
+name: Shared CI
+
+on:
+  workflow_call:
+    inputs:
+      build-license-report:
+        description: "Run `pnpm build-license-report` during the site build (core-packages has no such script)."
+        type: boolean
+        default: true
+      demo-id:
+        description: "Target directory inside open-pioneer/trails-demo, e.g. `openlayers-base-packages`."
+        type: string
+        required: true
+
+    secrets:
+      NPM_TOKEN:
+        required: true
+      DEMO_DEPLOY_TOKEN:
+        required: true
+
+    outputs:
+      published:
+        description: "A string (true or false) that indicates whether packages were published."
+        value: ${{ jobs.release.outputs.published }}
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: "Run quality checks"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install
+        uses: open-pioneer/trails-repo-automation/.github/actions/install@main
+
+      - name: Run tests
+        run: pnpm ci:test
+
+  build_packages:
+    name: "Build packages"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install
+        uses: open-pioneer/trails-repo-automation/.github/actions/install@main
+
+      - name: Build packages
+        run: pnpm build-packages
+
+  # Builds samples and documentation and uploads the contents of ./dist/ as an artifact ("build").
+  build_site:
+    name: "Build main site"
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install
+        uses: open-pioneer/trails-repo-automation/.github/actions/install@main
+
+      - name: Build site
+        uses: open-pioneer/trails-repo-automation/.github/actions/build-site@dev
+        with:
+          build-docs: "true"
+          build-license-report: ${{ inputs.build-license-report }}
+          artifact-retention-days: "7"
+
+  # Publishes packages using changesets.
+  release:
+    name: "Publish or create version PR"
+    if: github.ref == 'refs/heads/main'
+    needs:
+      - checks
+      - build_packages
+    uses: open-pioneer/trails-repo-automation/.github/workflows/shared-release.yml@dev
+    permissions:
+      contents: write
+      pull-requests: write
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # Uploads the build site to our demo deployment
+  deploy_site:
+    name: "Deploy site"
+    if: github.ref == 'refs/heads/main'
+    needs:
+      - checks
+      - build_site
+      - release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # https://github.com/JamesIves/github-pages-deploy-action/issues/1928#issuecomment-3635092712
+          persist-credentials: false
+
+      - name: Load artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: build
+          path: dist/
+
+      - name: Assemble site
+        run: |
+          set -eux;
+
+          mkdir -p site;
+          touch site/.nojekyll;
+          mv dist/www/* site/;
+          if [ -d dist/docs ]; then mv dist/docs site/docs; fi
+
+      - name: Deploy
+        uses: open-pioneer/trails-repo-automation/.github/actions/deploy-demo@dev
+        with:
+          src-repo: ${{ inputs.demo-id }}
+          target-path: ${{ needs.release.outputs.published == 'true' && 'latest' || 'dev' }}
+          token: ${{ secrets.DEMO_DEPLOY_TOKEN }}

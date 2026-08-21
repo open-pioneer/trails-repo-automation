@@ -1,4 +1,6 @@
 # Builds the samples site (and optionally API documentation) and uploads ./dist/ as the "build" artifact.
+#
+# Expects that pnpm is setup correctly and that dependencies are installed.
 name: Build site
 description: Builds samples and documentation and uploads the result as the "build" artifact
 inputs:
