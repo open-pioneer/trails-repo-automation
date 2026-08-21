@@ -73,6 +73,8 @@ runs:
       run: |
         set -eu
 
+        echo $NPM_TOKEN
+
         # The variable name contains "/" and ":", which bash cannot assign, so pass it via `env`.
         # See https://pnpm.io/npmrc
         env "pnpm_config_//registry.npmjs.org/:_authToken=$NPM_TOKEN" \
