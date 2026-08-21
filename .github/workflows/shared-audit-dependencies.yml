@@ -1,0 +1,27 @@
+# Shared dependency audit.
+name: Shared Audit Dependencies
+
+on:
+  workflow_call:
+    inputs:
+      audit-level:
+        description: "Minimum severity reported by `pnpm audit`."
+        type: string
+        default: "moderate"
+
+permissions:
+  contents: read
+
+jobs:
+  audit-dependencies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install
+        uses: open-pioneer/trails-repo-automation/.github/actions/install@main
+
+      - name: Audit dependencies
+        run: pnpm audit --audit-level ${{ inputs.audit-level }}
