@@ -68,7 +68,7 @@ runs:
         trap revoke EXIT
         pnpm config set "$AUTH_KEY" "$NPM_TOKEN" > /dev/null
 
-        # Fail with a clear message instead of the 404 that npm returns for unauthorised writes.
+        # Fail with a clear message instead of the 404 that npm returns for unauthorized writes.
         if ! WHOAMI=$(pnpm whoami --registry "$REGISTRY" 2>&1); then
           echo "::error::Cannot authenticate against $REGISTRY."
           echo "::error::$WHOAMI"
