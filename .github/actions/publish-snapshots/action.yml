@@ -8,7 +8,7 @@ inputs:
     description: NPM token for publishing packages
     required: true
   snapshot-tag:
-    description: Name of the snapshot build tag (e.g. "dev")
+    description: Name of the snapshot build tag. Must be "dev" or start with "dev-".
     required: false
     default: "dev"
   build-command:
@@ -18,13 +18,34 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Validate snapshot tag
+      shell: bash
+      env:
+        SNAPSHOT_TAG: ${{ inputs.snapshot-tag }}
+      run: |
+        set -eu
+
+        case "$SNAPSHOT_TAG" in
+          dev | dev-*) ;;
+          *)
+            echo "::error::Invalid snapshot-tag '$SNAPSHOT_TAG'."
+            echo "::error::Use \"dev\" for the main branch, or \"dev-<name>\" for other branches."
+            exit 1
+            ;;
+        esac
+        echo "snapshot-tag: $SNAPSHOT_TAG"
+
     # Bumps versions in package.json (see https://github.com/changesets/changesets/blob/main/docs/snapshot-releases.md)
     # The changes should not be committed to any branch: the "releases" are not part of the version history.
     - name: Version packages
       shell: bash
+      env:
+        SNAPSHOT_TAG: ${{ inputs.snapshot-tag }}
+        REF_NAME: ${{ github.ref_name }}
       run: |
-        echo "Publishing snapshot from ${{ github.ref_name}} using tag ${{ inputs.snapshot-tag }}"
-        pnpm changeset version --snapshot ${{ inputs.snapshot-tag }}
+        set -eu
+        echo "Publishing snapshot from $REF_NAME using tag $SNAPSHOT_TAG"
+        pnpm changeset version --snapshot "$SNAPSHOT_TAG"
 
     # Note: must happen after versioning because the updated package.json files will be copied into dist/
     - name: Build packages
@@ -33,10 +54,12 @@ runs:
 
     - name: Publish packages
       shell: bash
-      run: |
-        pnpm publish -r --access public --tag ${{ inputs.snapshot-tag }} --no-git-checks --report-summary
       env:
         NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+        SNAPSHOT_TAG: ${{ inputs.snapshot-tag }}
+      run: |
+        set -eu
+        pnpm publish -r --access public --tag "$SNAPSHOT_TAG" --no-git-checks --report-summary
 
     - name: List packages
       shell: bash
