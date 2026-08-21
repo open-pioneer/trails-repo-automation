@@ -1,8 +1,6 @@
 # Shared PR preview deployment.
 #
-# Triggered from the caller via `workflow_run` once the CI workflow has finished. A workflow_run
-# workflow executes in the base repository context with access to secrets, so it can deploy previews
-# for fork pull requests without ever checking out untrusted code.
+# Triggered from the caller via `workflow_run` once the CI workflow has finished.
 name: Shared Preview PR
 
 on:
@@ -33,6 +31,13 @@ jobs:
       contents: read
       pull-requests: write # for preview comment
     steps:
+      # We must be in a git repository, otherwise the deploy action fails (it performs git commands).
+      # This workflow must be triggered via workflow_run, so this just checks out the default branch, which is always safe.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
       - name: Resolve pull request and build artifact
         id: resolve
         env:
