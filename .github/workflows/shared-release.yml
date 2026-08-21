@@ -1,24 +1,11 @@
 # Shared changesets release workflow.
 #
-# Either opens/updates the "[RELEASE] Update package versions" PR or publishes to npm, depending on
+# Either opens/updates the release PR or publishes to npm, depending on
 # whether unreleased changesets exist.
 name: Shared Release
 
 on:
   workflow_call:
-    inputs:
-      version-command:
-        description: "pnpm script that applies changesets and updates the working tree."
-        type: string
-        default: "ci:version"
-      publish-command:
-        description: "pnpm script that builds and publishes the packages."
-        type: string
-        default: "ci:publish"
-      commit-message:
-        type: string
-        default: "[RELEASE] Update package versions"
-
     secrets:
       NPM_TOKEN:
         required: true
@@ -54,13 +41,12 @@ jobs:
 
       - id: changesets
         name: Create Release Pull Request or Publish to npm
-        # Unpinned today in all repos; renovate will pin the digest here once, for everyone.
         uses: changesets/action@v1
         with:
-          version: "pnpm run ${{ inputs.version-command }}"
-          publish: "pnpm run ${{ inputs.publish-command }}"
-          commit: ${{ inputs.commit-message }}
-          title: ${{ inputs.commit-message }}
+          version: "pnpm run ci:version"
+          publish: "pnpm run ci:publish"
+          commit: "[RELEASE] Update package versions"
+          title: "[RELEASE] Update package versions"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NO_VERIFY: "1" # don't run git hooks on simple version commits
