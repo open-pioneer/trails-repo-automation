@@ -1,0 +1,32 @@
+# Builds the samples site.
+#
+# This is a *reusable workflow*: the caller keeps a stub that triggers it on `pull_request` only.
+#
+# NOTE: This is a separate workflow to speed up the pr previews.
+# The preview-pr workflow waits for _this_ workflow to complete, not the tests.
+name: Shared Build Samples
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build_samples:
+    name: "Build samples for PR preview"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install
+        uses: open-pioneer/trails-repo-automation/.github/actions/install@main
+
+      - name: Build samples
+        uses: open-pioneer/trails-repo-automation/.github/actions/build-site@dev
+        with:
+          build-docs: "false"
+          build-license-report: "false"
+          artifact-retention-days: "1"

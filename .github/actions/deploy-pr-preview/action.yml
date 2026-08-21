@@ -1,6 +1,6 @@
 # Deploys a preview of a pull request to GitHub Pages
 #
-# - Expects the built preview website in `site/www/`
+# Expects the built preview website in `site/www/`
 name: Deploy PR Preview
 description: Deploys a preview of a pull request to GitHub Pages
 inputs:
@@ -17,12 +17,17 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Print configuration
+    - name: Validate inputs and print configuration
       shell: bash
       env:
         PR_NUMBER: ${{ inputs.pr-number }}
       run: |
         set -eu
+
+        if [ -z "$PR_NUMBER" ]; then
+          echo "::error::pr-number must not be empty"
+          exit 1
+        fi
 
         echo "src-repo: ${{ inputs.src-repo }}"
         echo "target-repository: open-pioneer/trails-pr-previews"

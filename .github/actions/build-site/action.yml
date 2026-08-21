@@ -1,0 +1,40 @@
+# Builds the samples site (and optionally API documentation) and uploads ./dist/ as the "build" artifact.
+name: Build site
+description: Builds samples and documentation and uploads the result as the "build" artifact
+inputs:
+  build-docs:
+    description: "Run `pnpm build-docs`. Only useful for the deployed site, not for previews."
+    required: false
+    default: "false"
+  build-license-report:
+    description: "Run `pnpm build-license-report`."
+    required: false
+    default: "true"
+  artifact-retention-days:
+    description: "How long to keep the uploaded artifact."
+    required: false
+    default: "1"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build samples
+      shell: bash
+      run: pnpm build
+
+    - name: Build API documentation
+      if: inputs.build-docs == 'true'
+      shell: bash
+      run: pnpm build-docs
+
+    - name: Create license report
+      if: inputs.build-license-report == 'true'
+      shell: bash
+      run: pnpm build-license-report
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      with:
+        name: build
+        path: dist/
+        retention-days: ${{ inputs.artifact-retention-days }}

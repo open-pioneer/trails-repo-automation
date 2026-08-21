@@ -66,9 +66,6 @@ jobs:
 
           PR_NUMBER=$(jq -r '.[0]' <<<"$PULLS")
           echo "Resolved pull request #$PR_NUMBER for $HEAD_SHA"
-
-          # TODO: Validate that PR_NUMBER is actually a number
-
           ARTIFACTS=$(gh api "/repos/$REPO/actions/runs/$RUN_ID/artifacts" \
             --jq '[.artifacts[] | select(.name == "build" and .expired == false)] | length')
           if [ "$ARTIFACTS" -eq 0 ]; then
