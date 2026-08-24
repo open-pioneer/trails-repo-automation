@@ -22,6 +22,7 @@ permissions:
 jobs:
   release:
     name: Release / Version PR
+    if: github.repository_owner == 'open-pioneer'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
