@@ -1,0 +1,34 @@
+# Shared snapshot publishing (manual "dev" releases to npm).
+name: Shared Publish Snapshot
+
+on:
+  workflow_call:
+    inputs:
+      snapshot-tag:
+        description: 'Name of the snapshot build tag. Use "dev" for the main branch and "dev-XYZ" for other branches.'
+        type: string
+        default: "dev"
+    secrets:
+      NPM_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: "Build and publish"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install
+        uses: open-pioneer/trails-repo-automation/.github/actions/install@main
+
+      - name: "Publish packages"
+        uses: open-pioneer/trails-repo-automation/.github/actions/publish-snapshots@main
+        with:
+          snapshot-tag: ${{ inputs.snapshot-tag }}
+          npm-token: ${{ secrets.NPM_TOKEN }}

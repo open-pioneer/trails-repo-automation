@@ -53,6 +53,9 @@ runs:
         echo "Cutoff date: $(date -d "@$CUTOFF_TIMESTAMP" --iso-8601=seconds)"
         echo ""
 
+        VIEW_ERR=$(mktemp)
+        trap 'rm -f "$VIEW_ERR"' EXIT
+
         # Track statistics
         TOTAL_PACKAGES=0
         PACKAGES_WITH_DEV_TAGS=0
@@ -62,17 +65,17 @@ runs:
         ERRORS=0
 
         echo "Fetching packages from $NPM_ORG..."
-        
+
         # Use npm access list packages command to get all packages in the organization
         SEARCH_SCOPE="${NPM_ORG#@}"
-        
+
         # Capture both stdout and stderr to properly detect errors
         # Temporarily disable -e to capture exit code
         set +e
         PACKAGES_OUTPUT=$(npm access list packages "$SEARCH_SCOPE" --json 2>&1)
         NPM_EXIT_CODE=$?
         set -e
-        
+
         # Check if npm command failed
         if [ $NPM_EXIT_CODE -ne 0 ]; then
           echo "❌ npm access command failed with exit code $NPM_EXIT_CODE"
@@ -85,7 +88,7 @@ runs:
           echo "  - Network issues"
           exit 1
         fi
-        
+
         # Validate that we got valid JSON
         PACKAGES_JSON=$(echo "$PACKAGES_OUTPUT" | jq '.' 2>/dev/null)
         if [ $? -ne 0 ]; then
@@ -94,12 +97,12 @@ runs:
           echo "$PACKAGES_OUTPUT"
           exit 1
         fi
-        
+
         if [ "$PACKAGES_JSON" = "{}" ]; then
           echo "⚠️  No packages found in $NPM_ORG"
           exit 1
         fi
-        
+
         # Extract package names (keys from the JSON object) and sort them
         PACKAGES=$(echo "$PACKAGES_JSON" | jq -r 'keys[]' | sort)
         PACKAGE_COUNT=$(echo "$PACKAGES" | wc -l)
@@ -115,10 +118,11 @@ runs:
           echo "📦 Checking package: $PACKAGE"
           
           # Fetch package metadata including dist-tags and publish times
-          PACKAGE_DATA=$(npm view "$PACKAGE" --json 2>/dev/null || echo "")
+          PACKAGE_DATA=$(npm view "$PACKAGE" --json 2>"$VIEW_ERR" || echo "")
           
           if [ -z "$PACKAGE_DATA" ]; then
-            echo "  ⚠️  Could not fetch package data, skipping"
+            echo "  ⚠️  Could not fetch package data, skipping:"
+            sed 's/^/      /' "$VIEW_ERR"
             ERRORS=$((ERRORS + 1))
             echo ""
             continue
@@ -180,11 +184,12 @@ runs:
                 TAGS_DELETED=$((TAGS_DELETED + 1))
               else
                 echo "     Deleting tag '$TAG'..."
-                if npm dist-tag rm "$PACKAGE" "$TAG" 2>/dev/null; then
+                if RM_OUTPUT=$(npm dist-tag rm "$PACKAGE" "$TAG" 2>&1); then
                   echo "     ✓ Deleted tag '$TAG'"
                   TAGS_DELETED=$((TAGS_DELETED + 1))
                 else
-                  echo "     ❌ Failed to delete tag '$TAG'"
+                  echo "     ❌ Failed to delete tag '$TAG':"
+                  printf '%s\n' "$RM_OUTPUT" | sed 's/^/        /'
                   ERRORS=$((ERRORS + 1))
                 fi
               fi
@@ -212,8 +217,13 @@ runs:
           echo "  ⚠️  Errors encountered: $ERRORS"
         fi
         echo "=========================================="
-        
+
         if [ "$DRY_RUN" = "true" ]; then
           echo ""
           echo "ℹ️  This was a DRY RUN - no tags were actually deleted"
+        fi
+
+        if [ "$ERRORS" -gt 0 ]; then
+          echo "::error::$ERRORS operation(s) failed - see the messages above."
+          exit 1
         fi

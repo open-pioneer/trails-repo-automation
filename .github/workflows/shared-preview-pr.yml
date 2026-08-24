@@ -1,0 +1,96 @@
+# Shared PR preview deployment.
+#
+# Triggered from the caller via `workflow_run` once the CI workflow has finished.
+name: Shared Preview PR
+
+on:
+  workflow_call:
+    inputs:
+      demo-id:
+        description: "Target directory inside open-pioneer/trails-pr-previews, e.g. `openlayers-base-packages`."
+        type: string
+        required: true
+
+    secrets:
+      DEMO_DEPLOY_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Preview PR
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency: >-
+      preview-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+    permissions:
+      actions: read # read the CI run's artifacts
+      contents: read
+      pull-requests: write # for preview comment
+    steps:
+      # We must be in a git repository, otherwise the deploy action fails (it performs git commands).
+      # This workflow must be triggered via workflow_run, so this just checks out the default branch, which is always safe.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Resolve pull request and build artifact
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          if ! PULLS=$(gh api "/repos/$REPO/commits/$HEAD_SHA/pulls" \
+              --jq '[.[] | select(.state == "open") | .number] | unique' 2>&1); then
+            echo "::error::Could not resolve pull requests for $HEAD_SHA: $PULLS"
+            exit 1
+          fi
+
+          COUNT=$(jq 'length' <<<"$PULLS")
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::notice::No open pull request for $HEAD_SHA (merged or closed meanwhile), skipping preview."
+            exit 0
+          fi
+          if [ "$COUNT" -gt 1 ]; then
+            echo "::error::$HEAD_SHA belongs to several open pull requests ($PULLS), aborting."
+            exit 1
+          fi
+
+          PR_NUMBER=$(jq -r '.[0]' <<<"$PULLS")
+          echo "Resolved pull request #$PR_NUMBER for $HEAD_SHA"
+          ARTIFACTS=$(gh api "/repos/$REPO/actions/runs/$RUN_ID/artifacts" \
+            --jq '[.artifacts[] | select(.name == "build" and .expired == false)] | length')
+          if [ "$ARTIFACTS" -eq 0 ]; then
+            echo "::notice::CI run $RUN_ID has no unexpired 'build' artifact, nothing to preview."
+            exit 0
+          fi
+
+          {
+            echo "deploy=true"
+            echo "pr-number=$PR_NUMBER"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Download build artifact
+        if: steps.resolve.outputs.deploy == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: build
+          path: site
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Deploy PR Preview
+        if: steps.resolve.outputs.deploy == 'true'
+        uses: open-pioneer/trails-repo-automation/.github/actions/deploy-pr-preview@main
+        with:
+          src-repo: ${{ inputs.demo-id }}
+          token: ${{ secrets.DEMO_DEPLOY_TOKEN }}
+          pr-number: ${{ steps.resolve.outputs.pr-number }}

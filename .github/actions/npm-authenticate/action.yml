@@ -1,0 +1,32 @@
+# Setup up node and pnpm dependencies
+#
+# Assumes that pnpm is setup correctly
+name: NPM Authenticate
+description: Authenticate against https://registry.npmjs.com
+inputs:
+  npm-token:
+    description: NPM token for publishing packages
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Configure npm token
+      shell: bash
+      env:
+        NPM_TOKEN: ${{ inputs.npm-token }}
+      run: |
+        set -eu
+
+        REGISTRY="https://registry.npmjs.org"
+        AUTH_KEY="//${REGISTRY#*://}/:_authToken"
+
+        pnpm config set "$AUTH_KEY" "$NPM_TOKEN"
+
+        # Fail with a clear message instead of the 404 that npm returns for unauthorized writes.
+        if ! WHOAMI=$(pnpm whoami --registry "$REGISTRY" 2>&1); then
+          echo "::error::Cannot authenticate against $REGISTRY."
+          echo "::error::$WHOAMI"
+          echo "::error::Check that the npm token is valid and has write access to the packages."
+          exit 1
+        fi
+        echo "Authenticated as: $WHOAMI"

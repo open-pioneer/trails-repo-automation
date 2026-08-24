@@ -1,0 +1,54 @@
+# Shared changesets release workflow.
+#
+# Either opens/updates the release PR or publishes to npm, depending on
+# whether unreleased changesets exist.
+name: Shared Release
+
+on:
+  workflow_call:
+    secrets:
+      NPM_TOKEN:
+        required: true
+
+    outputs:
+      published:
+        description: "A string (true or false) that indicates whether packages were published."
+        value: ${{ jobs.release.outputs.published }}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Release / Version PR
+    if: github.repository_owner == 'open-pioneer'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Install
+        uses: open-pioneer/trails-repo-automation/.github/actions/install@main
+
+      - name: Authenticate
+        uses: open-pioneer/trails-repo-automation/.github/actions/npm-authenticate@main
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
+
+      - id: changesets
+        name: Create Release Pull Request or Publish to npm
+        uses: changesets/action@v1
+        with:
+          version: "pnpm run ci:version"
+          publish: "pnpm run ci:publish"
+          commit: "[RELEASE] Update package versions"
+          title: "[RELEASE] Update package versions"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NO_VERIFY: "1" # don't run git hooks on simple version commits

@@ -1,25 +1,37 @@
 # Deploys a preview of a pull request to GitHub Pages
 #
-# - Expects the built preview website in `site/www/`
-# - Assumes that pnpm is set up correctly and that dependencies are installed.
+# Expects the built preview website in `site/www/`
 name: Deploy PR Preview
 description: Deploys a preview of a pull request to GitHub Pages
 inputs:
   src-repo:
-    description: "ID of the source repository"
+    description: "ID of the source repository. Serves as a namespace for deployments."
     required: true
   token:
     description: "Deployment token for GitHub Pages"
+    required: true
+  pr-number:
+    description: "Number of the pull request"
     required: true
 
 runs:
   using: "composite"
   steps:
-    - name: Print configuration
+    - name: Validate inputs and print configuration
       shell: bash
+      env:
+        PR_NUMBER: ${{ inputs.pr-number }}
       run: |
+        set -eu
+
+        if [ -z "$PR_NUMBER" ]; then
+          echo "::error::pr-number must not be empty"
+          exit 1
+        fi
+
         echo "src-repo: ${{ inputs.src-repo }}"
         echo "target-repository: open-pioneer/trails-pr-previews"
+        echo "pr-number: $PR_NUMBER"
 
     - name: Configure Git User
       shell: bash
@@ -27,11 +39,31 @@ runs:
         git config --global user.name "Open Pioneer Automation"
         git config --global user.email "contact@openpioneer.dev"
 
+    # Needs explicit options like pr-number and commit messages because we're running via workflow_run,
+    # not directly as a workflow triggered by pr events.
     - name: Deploy PR Preview
+      id: deploy
       uses: rossjrw/pr-preview-action@ffa7509e91a3ec8dfc2e5536c4d5c1acdf7a6de9 # v1
-      if: (github.event_name == 'pull-request' || github.event_name == 'pull_request_target') && github.event.action != 'closed'
       with:
         source-dir: ./site/www/
         umbrella-dir: "${{ inputs.src-repo }}/pr-previews"
         deploy-repository: open-pioneer/trails-pr-previews
         token: ${{ inputs.token }}
+        pr-number: ${{ inputs.pr-number }}
+        action: deploy
+        deploy-commit-message: "Deploy preview for PR ${{ inputs.pr-number }} 🛫"
+        remove-commit-message: "Remove preview for PR ${{ inputs.pr-number }} 🛬"
+        wait-for-pages-deployment: false
+        # pr-number is not forwarded to marocchino/sticky-pull-request-comment ...
+        comment: false
+
+    - name: Comment preview link on pull request
+      uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+      with:
+        header: pr-preview
+        number: ${{ inputs.pr-number }}
+        message: |
+          :rocket: View preview at ${{ steps.deploy.outputs.preview-url }}
+
+          <h6>Built to branch <a href="${{ github.server_url }}/open-pioneer/trails-pr-previews/tree/gh-pages">gh-pages</a> at ${{ steps.deploy.outputs.action-start-time }}.<br>
+          Preview will be ready when the <a href="${{ github.server_url }}/open-pioneer/trails-pr-previews/deployments">GitHub Pages deployment</a> is complete.</h6>
