@@ -31,7 +31,6 @@
         {
             "description": "don't use digest pinning for our own shared actions",
             "matchManagers": ["github-actions"],
-            "matchDepTypes": ["action"],
             "matchDepNames": ["open-pioneer/trails-repo-automation"],
             "pinDigests": false,
             "minimumReleaseAge": null
