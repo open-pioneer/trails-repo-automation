@@ -14,9 +14,6 @@
     "lockFileMaintenance": {
         "enabled": false
     },
-    "env": {
-        "CI": "1"
-    },
     "prConcurrentLimit": 0,
     "prHourlyLimit": 0,
     "rangeStrategy": "bump",
