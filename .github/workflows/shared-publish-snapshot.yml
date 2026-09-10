@@ -8,6 +8,10 @@ on:
         description: 'Name of the snapshot build tag. Use "dev" for the main branch and "dev-XYZ" for other branches.'
         type: string
         default: "dev"
+      build-command:
+        description: Command to build packages (e.g. "build-packages")
+        type: "string"
+        default: "build-packages"
     secrets:
       NPM_TOKEN:
         required: true
@@ -31,4 +35,5 @@ jobs:
         uses: open-pioneer/trails-repo-automation/.github/actions/publish-snapshots@main
         with:
           snapshot-tag: ${{ inputs.snapshot-tag }}
+          build-command: ${{ inputs.build-command }}
           npm-token: ${{ secrets.NPM_TOKEN }}
