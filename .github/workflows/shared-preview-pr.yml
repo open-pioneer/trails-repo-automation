@@ -45,18 +45,25 @@ jobs:
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           set -euo pipefail
 
-          if ! PULLS=$(gh api "/repos/$REPO/commits/$HEAD_SHA/pulls" \
-              --jq '[.[] | select(.state == "open") | .number] | unique' 2>&1); then
-            echo "::error::Could not resolve pull requests for $HEAD_SHA: $PULLS"
+          if [ -z "$HEAD_OWNER" ] || [ -z "$HEAD_BRANCH" ] || [ -z "$HEAD_SHA" ]; then
+            echo "::error::Incomplete workflow_run payload (owner='$HEAD_OWNER', branch='$HEAD_BRANCH', sha='$HEAD_SHA')."
+            exit 1
+          fi
+
+          if ! PULLS=$(gh api -X GET "/repos/$REPO/pulls" -f state=open -f head="$HEAD_OWNER:$HEAD_BRANCH" \
+              --jq '[.[] | select(.head.sha == $ENV.HEAD_SHA) | .number] | unique' 2>&1); then
+            echo "::error::Could not resolve pull requests for $HEAD_OWNER:$HEAD_BRANCH: $PULLS"
             exit 1
           fi
 
           COUNT=$(jq 'length' <<<"$PULLS")
           if [ "$COUNT" -eq 0 ]; then
-            echo "::notice::No open pull request for $HEAD_SHA (merged or closed meanwhile), skipping preview."
+            echo "::notice::No open pull request for $HEAD_OWNER:$HEAD_BRANCH at $HEAD_SHA (closed or superseded by a newer commit), skipping preview."
             exit 0
           fi
           if [ "$COUNT" -gt 1 ]; then
