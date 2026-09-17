@@ -34,10 +34,10 @@ jobs:
           fetch-depth: 0
 
       - name: Install
-        uses: open-pioneer/trails-repo-automation/.github/actions/install@main
+        uses: open-pioneer/trails-repo-automation/.github/actions/install@pnpm-12
 
       - name: Authenticate
-        uses: open-pioneer/trails-repo-automation/.github/actions/npm-authenticate@main
+        uses: open-pioneer/trails-repo-automation/.github/actions/npm-authenticate@pnpm-12
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
 

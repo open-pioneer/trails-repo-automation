@@ -22,10 +22,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install
-        uses: open-pioneer/trails-repo-automation/.github/actions/install@main
+        uses: open-pioneer/trails-repo-automation/.github/actions/install@pnpm-12
 
       - name: Build samples
-        uses: open-pioneer/trails-repo-automation/.github/actions/build-site@main
+        uses: open-pioneer/trails-repo-automation/.github/actions/build-site@pnpm-12
         with:
           build-docs: "false"
           build-license-report: "false"

@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install
-        uses: open-pioneer/trails-repo-automation/.github/actions/install@main
+        uses: open-pioneer/trails-repo-automation/.github/actions/install@pnpm-12
 
       - name: Run tests
         run: pnpm ci:test
@@ -54,7 +54,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install
-        uses: open-pioneer/trails-repo-automation/.github/actions/install@main
+        uses: open-pioneer/trails-repo-automation/.github/actions/install@pnpm-12
 
       - name: Build packages
         run: pnpm build-packages
@@ -70,10 +70,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install
-        uses: open-pioneer/trails-repo-automation/.github/actions/install@main
+        uses: open-pioneer/trails-repo-automation/.github/actions/install@pnpm-12
 
       - name: Build site
-        uses: open-pioneer/trails-repo-automation/.github/actions/build-site@main
+        uses: open-pioneer/trails-repo-automation/.github/actions/build-site@pnpm-12
         with:
           build-docs: "true"
           build-license-report: ${{ inputs.build-license-report }}
@@ -86,7 +86,7 @@ jobs:
     needs:
       - checks
       - build_packages
-    uses: open-pioneer/trails-repo-automation/.github/workflows/shared-release.yml@main
+    uses: open-pioneer/trails-repo-automation/.github/workflows/shared-release.yml@pnpm-12
     permissions:
       contents: write
       pull-requests: write
@@ -126,7 +126,7 @@ jobs:
           if [ -d dist/docs ]; then mv dist/docs site/docs; fi
 
       - name: Deploy
-        uses: open-pioneer/trails-repo-automation/.github/actions/deploy-demo@main
+        uses: open-pioneer/trails-repo-automation/.github/actions/deploy-demo@pnpm-12
         with:
           src-repo: ${{ inputs.demo-id }}
           target-path: ${{ needs.release.outputs.published == 'true' && 'latest' || 'dev' }}
