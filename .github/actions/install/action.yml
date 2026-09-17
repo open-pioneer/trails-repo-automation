@@ -13,7 +13,7 @@ runs:
       uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
       with:
         # No need to define specific pnpm version, "packageManager" should be set in package.json
-        runtime: node@24
+        runtime: node@24.21.0
         cache: true
         require-lockfile: true # --frozen-lockfile
         install: ${{ inputs.skip-install != 'true' }}
