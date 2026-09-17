@@ -96,7 +96,7 @@ jobs:
 
       - name: Deploy PR Preview
         if: steps.resolve.outputs.deploy == 'true'
-        uses: open-pioneer/trails-repo-automation/.github/actions/deploy-pr-preview@pnpm-12
+        uses: open-pioneer/trails-repo-automation/.github/actions/deploy-pr-preview@main
         with:
           src-repo: ${{ inputs.demo-id }}
           token: ${{ secrets.DEMO_DEPLOY_TOKEN }}
