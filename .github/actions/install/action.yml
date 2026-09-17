@@ -1,20 +1,19 @@
 # Setup up node and pnpm dependencies
 name: Install
 description: Install pnpm dependencies
+inputs:
+  skip-install:
+    description: Skip package installation. Use this when dependencies are not actually needed (e.g. audit).
+    required: false
+    default: false
 runs:
   using: "composite"
   steps:
     - name: Install pnpm
-      uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
       with:
-        run_install: false
-
-    - name: Install Node.js
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-      with:
-        node-version: 24.21.0
-        cache: "pnpm"
-
-    - name: Install dependencies
-      shell: bash
-      run: pnpm install --frozen-lockfile
+        # No need to define specific pnpm version, "packageManager" should be set in package.json
+        runtime: node@24
+        cache: true
+        require-lockfile: true # --frozen-lockfile
+        install: ${{ inputs.skip-install != 'true' }}
