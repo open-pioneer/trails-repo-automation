@@ -42,6 +42,9 @@ jobs:
       - name: Install
         uses: open-pioneer/trails-repo-automation/.github/actions/install@main
 
+      - name: Install playwright
+        run: pnpm playwright install chromium --force --with-deps
+
       - name: Run tests
         run: pnpm ci:test
 
