@@ -12,12 +12,14 @@ on:
         description: Command to build packages (e.g. "build-packages")
         type: "string"
         default: "build-packages"
+      trusted-publishing:
+        description: Publish with GitHub OIDC instead of an npm token
+        type: boolean
+        default: false
+
     secrets:
       NPM_TOKEN:
-        required: true
-
-permissions:
-  contents: read
+        required: false
 
 jobs:
   publish:
@@ -37,3 +39,4 @@ jobs:
           snapshot-tag: ${{ inputs.snapshot-tag }}
           build-command: ${{ inputs.build-command }}
           npm-token: ${{ secrets.NPM_TOKEN }}
+          trusted-publishing: ${{ inputs.trusted-publishing }}

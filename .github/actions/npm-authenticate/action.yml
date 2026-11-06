@@ -4,18 +4,38 @@
 name: NPM Authenticate
 description: Authenticate against https://registry.npmjs.com
 inputs:
+  trusted-publishing:
+    description: Publish with GitHub OIDC instead of an npm token
+    required: false
+    default: "false"
   npm-token:
-    description: NPM token for publishing packages
-    required: true
+    description: NPM token for publishing packages. Only needed when not using trusted-publishing.
+    required: false
 runs:
   using: "composite"
   steps:
+    - name: Configure trusted publishing
+      if: inputs.trusted-publishing == 'true'
+      shell: bash
+      run: |
+        set -eu
+        if [[ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" || -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]]; then
+          echo "::error::Trusted publishing requires id-token: write on the calling job."
+          exit 1
+        fi
+        echo "NPM_CONFIG_PROVENANCE=true" >> "$GITHUB_ENV"
     - name: Configure npm token
+      if: inputs.trusted-publishing != 'true'
       shell: bash
       env:
         NPM_TOKEN: ${{ inputs.npm-token }}
       run: |
         set -eu
+
+        if [[ -z "$NPM_TOKEN" ]]; then
+          echo "::error::Token publishing requires npm-token. Alternatively, opt into trusted publishing."
+          exit 1
+        fi
 
         REGISTRY="https://registry.npmjs.org"
         AUTH_KEY="//${REGISTRY#*://}/:_authToken"
