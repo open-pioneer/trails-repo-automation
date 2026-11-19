@@ -22,7 +22,7 @@ on:
 
     secrets:
       NPM_TOKEN:
-        required: true
+        required: false
       DEMO_DEPLOY_TOKEN:
         required: true
 
