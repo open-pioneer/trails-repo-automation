@@ -15,6 +15,10 @@ on:
         description: "Target directory inside open-pioneer/trails-demo, e.g. `openlayers-base-packages`."
         type: string
         required: true
+      trusted-publishing:
+        description: Publish with GitHub OIDC instead of an npm token
+        type: boolean
+        default: false
 
     secrets:
       NPM_TOKEN:
@@ -93,6 +97,8 @@ jobs:
       contents: write
       pull-requests: write
       id-token: write
+    with:
+      trusted-publishing: ${{ inputs.trusted-publishing }}
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
